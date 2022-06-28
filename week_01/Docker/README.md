@@ -1,4 +1,9 @@
-# 1주차 - Day 1 교육내용
+# 1주차 목록
+* [Day1 교육내용](#day-1-교육내용) 
+* [Day2 교육내용](#day-2-교육내용)
+
+---
+
 ## 주요 내용
 1. `Github` 또는 `Notion` 을 사용해서 교육내용을 정리하는 습관을 기르자. 되도록 `Github` 권장. ~~그래서 노력중~~
 2. 우리가 지금까지 해온 ML(Machine Learning)은 `Research ML` 이다. 실제 서비스에서는 `Product ML` 을 해야 한다.
@@ -81,3 +86,340 @@ $ reboot
 수업 중 `VirtualBox - Windows 간 클립보드가 공유되지 않는 문제`가 발생했는데, 위 환경처럼 구성하면 Windows 의 클립보드를 바로 사용할 수 있다는 장점도 존재했다. (개인적으로 CLI 환경이라면 선호하는 방식)
 
 ![환경설정 사진](./pic01.png)
+
+---
+
+# Day 2 교육내용
+
+## 주요내용
+1. 기본적인 `Docker 사용법`
+2. 로컬에서 이미지를 관리해주는 `registry` 이미지
+3. 클라우드로 이미지를 관리하는 `docker hub`
+4. 더욱 방대한 이미지를 관리할 수 있는 `쿠버네티스`
+
+## 간단평가
+ㅁㄴㅇㅁㄴㅇ
+
+---
+
+## Docker
+
+설치가 완료되었는지 확인하기 위해서 아래의 명령 실행
+``` bash
+$ docker run hello-world
+```
+
+누군가 만들어놓은 `hello-world` 라는 컨테이너를 받고 실행 후 종료 (지속 실행되지 않는 컨테이너)  
+
+어떤 특정한 프로그램이 우분투 래거시(과거) 버전을 사용하는 경우 `컨테이너에서 버전 변경 가능`  
+
+```bash
+# Docker 이미지를 가져오는 명령 'pull'
+# 우분투 18.04 Docker 이미지를 가져옴
+$ docker pull ubuntu:18.04
+
+# 다운로드 받은 이미지 확인
+$ docker images
+REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+ubuntu        18.04     ad080923604a   3 weeks ago    63.1MB
+hello-world   latest    feb5d9fea6a5   9 months ago   13.3kB
+
+# 실행중인 docker 프로세스 확인 (-a 옵션으로 Exited 기록까지 확인)
+$ docker ps -a
+CONTAINER ID   IMAGE         COMMAND    CREATED          STATUS                      PORTS     NAMES
+9a3a340adbf1   hello-world   "/hello"   10 minutes ago   Exited (0) 10 minutes ago             upbeat_ritchie
+d3155679476c   hello-world   "/hello"   10 hours ago     Exited (0) 10 hours ago               epic_matsumoto
+e6b372e7e0c6   hello-world   "/hello"   16 hours ago     Exited (0) 16 hours ago               confident_williams
+c91846635398   hello-world   "/hello"   16 hours ago     Exited (0) 16 hours ago               loving_brown
+b062aac74813   hello-world   "/hello"   16 hours ago     Exited (0) 16 hours ago               zen_euler
+
+# docker 실행, -it(interective mode, 명령 입력 가능 모드), --name 별칭
+# 최종적으로 아까 다운받은 ubuntu 18.04 이미지 실행
+# 최초 실행 시 어느 프로세스를 실행시킬 것인지 경로 지정 -> bash
+# /bin 경로에는 자주 사용하는 프로세스가 존재하는 경로
+$ docker run -it --name demo1 ubuntu:18.04 /bin/bash
+root@a2442a22985a:/#
+# 달러($) 표시에서 샵(#) 표시로 바뀜으로서
+# 새로운 Docker 환경의 관리자 권한으로 들어왔다는 것을 확인
+
+# 새로운 Docker 환경에서 update 및 upgrade 진행
+# superuser 권한이므로 'sudo' 명령이 필요 없음
+> apt-get update
+> apt-get upgrade
+
+# docker 환경에서 빠져나가기
+> exit
+~$
+# 다시 달러($) 표시로 바뀌며 원래의 Ubuntu 환경으로 돌아온것을 확인
+
+# 어떤 작업을 했는 지 확인하기 위해 log 확인
+# 로그 검사할 대상 컨테이너가 인수로 들어감
+$ docker logs demo1
+root@a2442a22985a:/# apt-get update
+Get:1 http://archive.ubuntu.com/ubuntu bionic InRelease [242 kB]
+...
+Reading package lists... Done
+root@a2442a22985a:/# apt-get upgrade
+Reading package lists... Done
+...
+Processing triggers for libc-bin (2.27-3ubuntu1.6) ...
+root@a2442a22985a:/# exit
+exit
+# 전에 입력한 명령어들과 출력들을 확인할 수 있음
+```
+
+동시에 여러 컨테이너를 실행시키기 위해서는 아래와 같이 실행
+
+```bash
+# ubuntu 18.04 이미지의 별칭을 demo2 로도 생성
+# -d : 메모리에 적재(demon)
+$ docker run -it -d --name demo2 ubuntu:18.04
+e19baf7c370b83a0c3430d3ef343d20ca336a5722ee3fdbafdf44645456b050d
+
+# docker 프로세스 확인
+$ docker ps
+CONTAINER ID   IMAGE          COMMAND   CREATED         STATUS         PORTS     NAMES
+e19baf7c370b   ubuntu:18.04   "bash"    3 seconds ago   Up 2 seconds             demo2
+
+# 실행중인 docker 프로세스에 접속
+$ docker exec -it demo2 /bin/bash
+root@e19baf7c370b:/#
+> exit
+# -d 모드로 실행시킨 경우 exit 로 빠져나와도 프로세스가 종료되지 않음
+
+# busybox 이미지 -d 모드로 실행
+# 루프를 돌며 날짜를 1초마다 찍음
+$ docker run -d --name demo3 busybox sh -c "while true; do $(echo date); sleep 1; done"
+Unable to find image 'busybox:latest' locally
+latest: Pulling from library/busybox
+19d511225f94: Pull complete
+Digest: sha256:3614ca5eacf0a3a1bcc361c939202a974b4902b9334ff36eb29ffe9011aaad83
+Status: Downloaded newer image for busybox:latest
+662cb30d7c7f2a893fbdb497c90c18bbfb72b23f0eacb01683d468a743e47e9a
+
+# -d 모드의 실행 결과를 확인하기 위해 로그를 확인
+$ docker logs demo3
+Tue Jun 28 01:17:13 UTC 2022
+Tue Jun 28 01:17:14 UTC 2022
+Tue Jun 28 01:17:15 UTC 2022
+Tue Jun 28 01:17:16 UTC 2022
+Tue Jun 28 01:17:17 UTC 2022
+Tue Jun 28 01:17:18 UTC 2022
+Tue Jun 28 01:17:19 UTC 2022
+Tue Jun 28 01:17:20 UTC 2022
+
+# 실시간 로그를 확인하기 위해 -f 옵션 사용
+# 1초마다 실행되는 것을 확인할 수 있음
+$ docker logs demo3 -f
+Tue Jun 28 01:17:13 UTC 2022
+Tue Jun 28 01:17:14 UTC 2022
+Tue Jun 28 01:17:15 UTC 2022
+...
+Tue Jun 28 01:20:09 UTC 2022
+# Break 명령(Control + C, ^C)
+
+# 실행중인 컨테이너를 멈추고 싶은 경우
+$ docker stop demo3
+demo3
+$ docker stop demo2
+demo2
+
+# 모든 컨테이너가 종료된것을 확인
+$ docker ps
+CONTAINER ID   IMAGE     COMMAND   CREATED   STATUS    PORTS     NAMES
+
+# 실행중인 컨테이너가 없어도 메모리에 존재
+# rm(remove) 명령을 사용하여 컨테이너 삭제
+$ docker rm demo3
+demo3
+$ docker rm demo2
+demo2
+$ docker rm demo1
+demo1
+
+# 삭제 후 docker 프로세스 확인
+# 삭제한 demo1~3 에 대한 정보가 모두 사라진것을 확인
+CONTAINER ID   IMAGE         COMMAND    CREATED             STATUS                         PORTS     NAMES
+9a3a340adbf1   hello-world   "/hello"   About an hour ago   Exited (0) About an hour ago             upbeat_ritchie
+d3155679476c   hello-world   "/hello"   11 hours ago        Exited (0) 11 hours ago                  epic_matsumoto
+e6b372e7e0c6   hello-world   "/hello"   17 hours ago        Exited (0) 17 hours ago                  confident_williams
+c91846635398   hello-world   "/hello"   17 hours ago        Exited (0) 17 hours ago                  loving_brown
+b062aac74813   hello-world   "/hello"   17 hours ago        Exited (0) 17 hours ago                  zen_euler
+
+# 다운받은 이미지를 확인하고, 필요 없는 이미지는 삭제
+$ docker images
+REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+busybox       latest    62aedd01bd85   2 weeks ago    1.24MB
+ubuntu        18.04     ad080923604a   3 weeks ago    63.1MB
+hello-world   latest    feb5d9fea6a5   9 months ago   13.3kB
+
+# 이미지 삭제는 rmi(remove image) 사용
+$ docker rmi ubuntu:18.04
+Untagged: ubuntu:18.04
+Untagged: ubuntu@sha256:478caf1bec1afd54a58435ec681c8755883b7eb843a8630091890130b15a79af
+Deleted: sha256:ad080923604aa54962e903125cd9a860605c111bc45afc7d491cd8c77dccc13b
+Deleted: sha256:95129a5fe07e89c1898dc40a027b291d5fe33a67b35a88f0f0eaf51ea691f0b5
+
+$ docker rmi busybox
+Untagged: busybox:latest
+Untagged: busybox@sha256:3614ca5eacf0a3a1bcc361c939202a974b4902b9334ff36eb29ffe9011aaad83
+Deleted: sha256:62aedd01bd8520c43d06b09f7a0f67ba9720bdc04631a8242c65ea995f3ecac8
+Deleted: sha256:7ad00cd55506625f2afad262de6002c8cef20d214b353e51d1025e40e8646e18
+
+# 이미지 삭제 확인
+$ docker images
+REPOSITORY    TAG       IMAGE ID       CREATED        SIZE
+hello-world   latest    feb5d9fea6a5   9 months ago   13.3kB
+```
+
+## Linux 명령어
+
+* `cd(Change Directory)` : 경로 변경  
+* `pwd(Print Working Directory)` : 현재 위치한 경로 출력  
+* `mkdir(Make Directory)` : 새로운 폴더 생성  
+* `ls(List Show)` : 현재 경로의 파일/경로 목록 출력  
+
+```bash
+# 홈으로 이동
+$ cd $HOME
+# 현재 경로 출력
+$ pwd
+/home/ubuntu
+# 새로운 폴더 생성
+$ mkdir docker-practice
+# 새로 만든 폴더 경로로 이동
+$ cd docker-practice
+# 빈 내용의 파일 'Dockerfile' 생성
+$ touch Dockerfile
+# 파일 목록을 확인
+$ ls:q:
+Dockerfile
+
+# 파일 내용을 편집하기 위해서 'vi' 편집기 사용
+$ vi Dockerfile
+```
+
+## Vi 편집기
+`ESC` : 명령 모드로 전환  
+`i(insert)` : 편집 모드  
+`:w` : 저장  
+`:q` : 나가기  
+`:q!` : 강제 종료  
+
+Dockerfile 은 아래와 같이 작성
+
+```file
+# Dockerfile 
+FROM ubuntu:18.04
+
+RUN apt-get update
+
+CMD ["echo", "hello docker!"]
+```
+
+## Docker Build
+
+'Dockerfile' 을 이용하여 Docker 이미지를 만드는 것을 빌드 또는 '만다' 라고 표현함
+
+```bash
+# 도커 이미지를 생성하는데, 이름을 'my-image' 로 생성
+# 버전 태그를 1.0.0 으로 설정, Dockerfile 이 존재하는 경로를 입력
+$ docker build -t my-image:v1.0.0 .
+Sending build context to Docker daemon  2.048kB
+Step 1/3 : FROM ubuntu:18.04
+18.04: Pulling from library/ubuntu
+...
+Successfully built a636966ff83e
+Successfully tagged my-image:v1.0.0
+# 자동으로 apt-get update 명령이 실행됨
+
+# 생성된 docker 이미지 확인
+$ docker images
+REPOSITORY   TAG       IMAGE ID       CREATED          SIZE
+my-image     v1.0.0    a636966ff83e   16 seconds ago   104MB
+ubuntu       18.04     ad080923604a   3 weeks ago      63.1MB
+
+# docker 이미지 실행결과 중, grep 명령어를 통해 'my' 단어가 들어간 목록만 출력
+$ docker images | grep my
+my-image     v1.0.0    a636966ff83e   About a minute ago   104MB
+
+# 새로 생성한 'my-image' 이미지를 실행
+$ docker run my-image:v1.0.0
+Hello Docker!!
+# 정상적으로 echo 명령이 실행되는 것을 확인
+
+# -d 모드로 실행
+# -p 옵션으로 포트넘버 지정 (내부:외부)
+# registry 라는 이름의 이미지를 registry 이름으로 지정
+$ docker run -d -p 5000:5000 --name registry registry
+
+# docker pull rate limit 발생 시 로그인 처리
+$ docker login
+UserName: 
+Password: 
+...
+Login Succeeded
+
+# 명령 재실행
+$ docker run -d -p 5000:5000 --name registry registry
+Unable to find image 'registry:latest' locally
+latest: Pulling from library/registry
+2408cc74d12b: Pull complete
+ea60b727a1ce: Pull complete
+c87369050336: Pull complete
+e69d20d3dd20: Pull complete
+fc30d7061437: Pull complete
+Digest: sha256:bedef0f1d248508fe0a16d2cacea1d2e68e899b2220e2258f1b604e1f327d475
+Status: Downloaded newer image for registry:latest
+0535dfd1ec34ed596ef7e0297e6256e97e67136bcf831a971abc54ccb3679fc9
+
+# Registry docker 는 로컬에서 docker 이미지를 관리해주는 역할
+# 실행 여부 확인
+$ docker ps
+CONTAINER ID   IMAGE      COMMAND                  CREATED          STATUS          PORTS                                       NAMES
+0535dfd1ec34   registry   "/entrypoint.sh /etc…"   41 seconds ago   Up 40 seconds   0.0.0.0:5000->5000/tcp, :::5000->5000/tcp   registry
+
+# registry 컨테이너에 이미지를 전송
+$ docker tag my-image:v1.0.0 localhost:5000/my-image:v1.0.0
+
+# docker 이미지 확인
+$ docker images
+REPOSITORY                TAG       IMAGE ID       CREATED          SIZE
+my-image                  v1.0.0    a636966ff83e   31 minutes ago   104MB
+localhost:5000/my-image   v1.0.0    a636966ff83e   31 minutes ago   104MB
+ubuntu                    18.04     ad080923604a   3 weeks ago      63.1MB
+registry                  latest    773dbf02e42e   4 weeks ago      24.1MB
+
+# docker 이미지 registry 에 push
+$ docker push localhost:5000/my-image:v1.0.0
+The push refers to repository [localhost:5000/my-image]
+9beb6b9d6d83: Pushed
+95129a5fe07e: Pushed
+v1.0.0: digest: sha256:b60db61f2ba1b4c4ee817204bb9e4780dcd440b984a97a86893d8fe4246bf976 size: 741
+
+# registry 에 데이터 상태 질의
+$ curl -X GET http://localhost:5000/v2/_catalog
+{"repositories":["my-image"]}
+# 특정 이미지의 Tag 정보를 자세하게 확인하려고 하는 경우
+$ curl -X GET http://localhost:5000/v2/my-image/tags/list
+{"name":"my-image","tags":["v1.0.0"]}
+```
+
+## Docker Hub
+Github 와 비슷하게 Docker Hub 사이트에 이미지를 업로드 하는 방법
+
+```bash
+# Docker Hub 에 이미지 업로드 (내 계정으로)
+$ docker tag my-image:v1.0.0 k9714/my-image:v1.0.0
+
+# Docker Hub 에 push (내 계정으로)
+$ docker push k9714/my-image:v1.0.0
+The push refers to repository [docker.io/k9714/my-image]
+9beb6b9d6d83: Pushed
+95129a5fe07e: Mounted from library/ubuntu
+v1.0.0: digest: sha256:b60db61f2ba1b4c4ee817204bb9e4780dcd440b984a97a86893d8fe4246bf976 size: 741
+```
+
+Docker Hub Repository 에 업로드가 완료된 모습
+
+![dockerhub-repos](pic02.png)
