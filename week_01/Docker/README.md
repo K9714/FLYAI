@@ -94,11 +94,14 @@ $ reboot
 ## 주요내용
 1. 기본적인 `Docker 사용법`
 2. 로컬에서 이미지를 관리해주는 `registry` 이미지
-3. 클라우드로 이미지를 관리하는 `docker hub`
-4. 더욱 방대한 이미지를 관리할 수 있는 `쿠버네티스`
+3. 클라우드로 이미지를 관리하는 `docker hub` 사용하기
+4. 더욱 방대한 이미지를 관리할 수 있는 `쿠버네티스` 설치하기
 
 ## 간단평가
-ㅁㄴㅇㅁㄴㅇ
+오늘은 쿠버네티스 설정에 시간을 대부분 사용했다.  
+Docker Hub 에서 약 1% 사용자가 전체 패킷량의 30% 이상을 사용한다는 이유로 IP 당 6시간 제한 할당량을 정해두었다.  
+실습실에서 모두 같은 네트워크를 사용하다보니 금방 제한 할당량에 도달하여 Docker Image 를 다운로드 하지 못하는 상황이 발생했다. ~~나는 사실 VPN 으로 문제를 해결했다~~  
+Docker 를 사용해본 경험이 없었기 때문에 아직 정확한 사용 의미는 깨닫지 못했지만, 점차 익숙해지려 노력해볼 예정이다.
 
 ---
 
@@ -277,7 +280,7 @@ hello-world   latest    feb5d9fea6a5   9 months ago   13.3kB
 * `cd(Change Directory)` : 경로 변경  
 * `pwd(Print Working Directory)` : 현재 위치한 경로 출력  
 * `mkdir(Make Directory)` : 새로운 폴더 생성  
-* `ls(List Show)` : 현재 경로의 파일/경로 목록 출력  
+* `ls(List Segments)` : 현재 경로의 파일/경로 목록 출력  
 
 ```bash
 # 홈으로 이동
@@ -423,3 +426,161 @@ v1.0.0: digest: sha256:b60db61f2ba1b4c4ee817204bb9e4780dcd440b984a97a86893d8fe42
 Docker Hub Repository 에 업로드가 완료된 모습
 
 ![dockerhub-repos](pic02.png)
+
+## 쿠버네티스 설치
+
+```bash
+# Minikube 설치를 위한 파일 받기
+$ curl -LO https://storage.googleapis.com/minikube/releases/v1.22.0/minikube-linux-amd64
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 66.5M  100 66.5M    0     0  4961k      0  0:00:13  0:00:13 --:--:-- 3959k
+
+# 다운받은 minikube 설치
+$ sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+# minikube 설치 확인
+$ minikube
+minikube는 개발 워크플로우에 최적화된 로컬 쿠버네티스를 제공하고                                     관리합니다.
+...
+Use "minikube <command> --help" for more information about a given command.
+
+# minikube 버전 확인
+$ minikube version
+minikube version: v1.22.0
+commit: a03fbcf166e6f74ef224d4a63be4277d017bb62e
+
+# 명령어로 컨트롤하기 위해 CLI 도구가 필요
+# kubectl 도구 다운로드
+$ curl -LO https://dl.k8s.io/release/v1.22.1/bin/linux/amd64/kubectl
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   154  100   154    0     0    594      0 --:--:-- --:--:-- --:--:--   592
+100   220  100   220    0     0    367      0 --:--:-- --:--:-- --:--:--   367
+
+# 유저 모드로 'sudo' 키워드 없이 명령을 사용하기 위해서
+# /usr/local/bin/kubectl 경로 권한 0755 로 변경
+$ sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+
+# kubectl 설치 확인
+$ kubectl
+kubectl controls the Kubernetes cluster manager.
+...
+Use "kubectl options" for a list of global command-line options (applies to all commands).
+
+# Minikube 시작
+# !! 중요, VirtualBox CPU 개수가 2코어 이상이여야 힘!
+$ minikube start --driver=docker
+😄  Ubuntu 20.04 (vbox/amd64) 의 minikube v1.22.0
+🎉  minikube 1.26.0 이 사용가능합니다! 다음 경로에서 다운받으세요: https://github.com/kubernetes/minikube/releases/tag/v1.26.0
+...
+🌟  애드온 활성화 : storage-provisioner, default-storageclass
+🏄  끝났습니다! kubectl이 "minikube" 클러스터와 "default" 네임스페이스를 기본적으로 사용하도록 구성되었습니다.
+# CPU 코어 수정 후 설치가 정상적으로 진행됨
+
+# minikube 실행중인지 확인
+$ minikube status
+minikube
+type: Control Plane
+host: Running
+kubelet: Running
+apiserver: Running
+kubeconfig: Configured
+# minikube Running 확인
+
+# docker 에서도 확인
+$ docker ps
+CONTAINER ID   IMAGE                                 COMMAND                  CREATED         STATUS         PORTS                                                                                                                                  NAMES
+4aff53531b89   gcr.io/k8s-minikube/kicbase:v0.0.25   "/usr/local/bin/entr…"   2 minutes ago   Up 2 minutes   127.0.0.1:49157->22/tcp, 127.0.0.1:49156->2376/tcp, 127.0.0.1:49155->5000/tcp, 127.0.0.1:49154->8443/tcp, 127.0.0.1:49153->32443/tcp   minikube
+# minikube 컨테이너가 실행중인 것을 확인 가능
+
+
+# 쿠버네티스의 실행중인 시스템 확인
+$ kubectl get pod -n kube-system
+NAME                               READY   STATUS    RESTARTS   AGE
+coredns-558bd4d5db-np97g           1/1     Running   0          15m
+etcd-minikube                      1/1     Running   0          15m
+kube-apiserver-minikube            1/1     Running   0          15m
+kube-controller-manager-minikube   1/1     Running   0          15m
+kube-proxy-wmdzq                   1/1     Running   0          15m
+kube-scheduler-minikube            1/1     Running   0          15m
+storage-provisioner                1/1     Running   0          15m
+
+# minikube 서비스 끄기
+$ minikube delete
+🔥  docker 의 "minikube" 를 삭제하는 중 ...
+🔥  Deleting container "minikube" ...
+🔥  /home/ubuntu/.minikube/machines/minikube 제거 중 ...
+💀  "minikube" 클러스터 관련 정보가 모두 삭제되었습니다
+```
+
+## pod.yaml 생성
+확장자는 `yaml`, `pod.yaml` 파일을 생성
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+    name: counter
+spec:
+    containers:
+        - name: count
+          image: busybox
+          args: [/bin/sh, -c, 'i = 0; while true; do echo "$i: &(date) "; i=$((i + 1)); sleep 1; done']
+```
+
+## pod.yaml 파일 적용
+```bash
+# 쿠버네티스 실행
+$ minikube start --driver=docker
+😄  Ubuntu 20.04 (vbox/amd64) 의 minikube v1.22.0
+✨  유저 환경 설정 정보에 기반하여 docker 드라이버를 사용하는 중
+...
+🌟  애드온 활성화 : default-storageclass, storage-provisioner
+🏄  끝났습니다! kubectl이 "minikube" 클러스터와 "default" 네임스페이스를 기본적으로 사용하도록 구성되었습니다.
+
+# pod.yaml 파일 적용
+$ kubectl apply -f pod.yaml
+pod/counter created
+
+# pod 상태 확인
+$ kubectl get pod
+NAME      READY   STATUS    RESTARTS   AGE
+counter   1/1     Running   0          37s
+# 만약, Running 이 안된다면 대부분 docker hub rate limit 오류
+# docker login 또는 IP 변경으로 해결 가능
+
+# System pod 까지 모두 확인하기
+$ kubectl get pod -A
+NAMESPACE     NAME                               READY   STATUS    RESTARTS   AGE
+default       counter                            1/1     Running   0          25m
+kube-system   coredns-558bd4d5db-p8nfx           1/1     Running   0          25m
+kube-system   etcd-minikube                      1/1     Running   0          25m
+kube-system   kube-apiserver-minikube            1/1     Running   0          25m
+kube-system   kube-controller-manager-minikube   1/1     Running   0          25m
+kube-system   kube-proxy-kw59m                   1/1     Running   0          25m
+kube-system   kube-scheduler-minikube            1/1     Running   0          25m
+kube-system   storage-provisioner                1/1     Running   0          25m
+
+# 지속적으로 확인하기 위해 모니터링 옵션 -w 사용
+$ kubectl get pod -w
+NAME      READY   STATUS    RESTARTS   AGE
+counter   1/1     Running   0          26m
+# 상태 변화를 주기적으로 확인할 수 있음
+
+# Pod 내부에 접속하기
+$ - # kubectl exec -it counter /bin/bash
+
+# Pod 삭제하기
+$ kubectl delete pod counter
+pod "counter" deleted
+
+# 삭제 확인하기
+$ kubectl get pod
+No resources found in default namespace.
+```
+
+## 번외 - Google Colab.
+`Jupyter Notebook` 과 같이 사용할 수 있는 구글 제공 서비스.  
+구글의 방대한 컴퓨팅 자원을 일부 사용할 수 있도록 해주는 서비스다.  
+`Jupyter Notebook` 과 거의 사용 방법이 유사해서 만약 경험자라면 손쉽게 적응할 수 있다.  
+
