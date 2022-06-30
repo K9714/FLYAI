@@ -1,8 +1,13 @@
 # 1주차 목록
 * [Day1 교육내용](#day-1-교육내용) 
 * [Day2 교육내용](#day-2-교육내용)
+* [Day3 교육내용](#day-3-교육내용)
+* [Day4 교육내용](#day-4-교육내용)
 
 ---
+
+
+# Day 1 교육내용
 
 ## 주요 내용
 1. `Github` 또는 `Notion` 을 사용해서 교육내용을 정리하는 습관을 기르자. 되도록 `Github` 권장. ~~그래서 노력중~~
@@ -64,7 +69,7 @@ $ curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 # ARM 아키텍처 CPU와 x86 아키텍처 CPU의 과정이 틀리다고 하셨다.
 # 실습 랩톱은 x86(Intel) 기반이므로, 아래와 같이 진행
 $ sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-$ apt-get update
+$ sudo apt-get update
 $ sudo apt-get install docker-ce docker-ce-cli containerd.io
 ```
 설치를 마치고, 정상 실행 확인 및 사용자에게 docker 명령어의 권한 추가 후 리부팅
@@ -584,3 +589,777 @@ No resources found in default namespace.
 구글의 방대한 컴퓨팅 자원을 일부 사용할 수 있도록 해주는 서비스다.  
 `Jupyter Notebook` 과 거의 사용 방법이 유사해서 만약 경험자라면 손쉽게 적응할 수 있다.  
 
+---
+
+# Day 3 교육내용
+
+## 주요 내용
+1. `Deployment` 생성과 삭제
+2. `service` 생성해서 내부 pod 접속하기
+3. `git` 과 `DVC` 사용해보기
+4. `MLFlow` 사용 및 ui 웹페이지 접속해보기
+5. `flask` 간단 웹 서버 접속 및 라우팅 처리해보기
+
+## 간단 평가
+쿠버네티스의 Deployment 및 Service 에 대해 실습을 진행했다.  
+git 에서 큰 용량의 데이터는 저장하지 못하는 제한이 있는데, 이를 DVC를 이용하여 처리하는 방법에 대해 실습을 진행했다.  
+파라미터를 지속적으로 바꿔야하는 ML 에서, 작업 로그를 손쉽게 볼 수 있는 MLflow 에 대해 실습도 진행했다.  
+MLflow 기능은 진작에 알았으면 참 좋았을 것 같았던 기능이었다.  
+마지막으로 간단 웹 서버인 `flask` 에 대해 실습하며 마무리했다.
+
+---
+
+## Deployment 생성 및 삭제
+
+```bash
+# 하나의 Deployment yaml 파일 생성
+$ vi deployment.yaml
+```
+
+아래는 deployment.yaml 내용
+
+``` yaml
+apiVersion: apps/v1 # kubernetes resource 의 API Version
+kind: Deployment # kubernetes resource name
+metadata: # 메타데이터 : name, namespace, labels, annotations 등을 포함
+  name: nginx-deployment
+  labels:
+    app: nginx
+spec: # 메인 파트 : resource 의 desired state 를 명시
+  replicas: 3 # 동일한 template 의 pod 을 3 개 복제본으로 생성합니다.
+  selector:
+    matchLabels:
+      app: nginx
+  template: # Pod 의 template 을 의미합니다.
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - name: nginx # container 의 이름
+        image: nginx:1.14.2 # container 의 image
+        ports:
+        - containerPort: 80 # container 의 내부 Port
+```
+
+적용 후 아래와 같이 Deployment 생성
+
+``` bash
+# Yaml 파일 연결 생성
+$ kubectl apply -f deployment.yaml
+deployment.apps/nginx-deployment created
+
+# 서비스 동작 확인
+$ kubectl get deployment
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   0/3     3            0           9s
+
+# Deployment 와 pod 동시에 출력해보기
+$ kubectl get deployment,pod
+NAME                               READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/nginx-deployment   3/3     3            3           3m54s
+
+NAME                                    READY   STATUS    RESTARTS   AGE
+pod/counter                             1/1     Running   0          4m48s
+pod/nginx-deployment-66b6c48dd5-5w82x   1/1     Running   0          3m54s
+pod/nginx-deployment-66b6c48dd5-884pz   1/1     Running   0          3m54s
+pod/nginx-deployment-66b6c48dd5-qjcbc   1/1     Running   0          3m54s
+
+# Auto Healing 기능 테스트
+# 강제로 pod 하나 죽이기
+$ kubectl delete pod nginx-deployment-66b6c48dd5-5w82x
+pod "nginx-deployment-66b6c48dd5-5w82x" deleted
+
+# pod 확인
+$ kubectl get pod
+NAME                                READY   STATUS    RESTARTS   AGE
+counter                             1/1     Running   0          7m22s
+nginx-deployment-66b6c48dd5-2pwgl   1/1     Running   0          22s
+nginx-deployment-66b6c48dd5-884pz   1/1     Running   0          6m28s
+nginx-deployment-66b6c48dd5-qjcbc   1/1     Running   0          6m28s
+# 죽었던 pod 를 자동으로 새로 생성해준 모습을 확인할 수 있음
+
+# pod 용량 증가시키기
+$ kubectl scale deployment/nginx-deployment --replicas=5
+deployment.apps/nginx-deployment scaled
+
+# Deployment 및 pod 확인
+$ kubectl get deployment
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   3/5     3            3           24m
+
+$ kubectl get pod
+NAME                                READY   STATUS    RESTARTS   AGE
+counter                             1/1     Running   0          27m
+nginx-deployment-66b6c48dd5-2pwgl   1/1     Running   0          20m
+nginx-deployment-66b6c48dd5-7qzhq   1/1     Running   0          2m
+nginx-deployment-66b6c48dd5-884pz   1/1     Running   0          26m
+nginx-deployment-66b6c48dd5-jn2bx   1/1     Running   0          2m
+nginx-deployment-66b6c48dd5-qjcbc   1/1     Running   0          26m
+
+# pod 용량 줄이기
+$ kubectl scale deployment/nginx-deployment --replicas=1
+deployment.apps/nginx-deployment scaled
+
+# Deployment 및 pod 확인
+$ kubectl get deployment
+NAME               READY   UP-TO-DATE   AVAILABLE   AGE
+nginx-deployment   1/1     1            1           27m
+
+$ kubectl get pod
+NAME                                READY   STATUS    RESTARTS   AGE
+counter                             1/1     Running   0          28m
+nginx-deployment-66b6c48dd5-884pz   1/1     Running   0          27m
+
+# Deployment 삭제
+$ kubectl delete deployment nginx-deployment
+deployment.apps "nginx-deployment" deleted
+
+# Deployment 및 pod 확인
+$ kubectl get deployment
+No resources found in default namespace.
+
+$ kubectl get pod
+NAME      READY   STATUS    RESTARTS   AGE
+counter   1/1     Running   0          30m
+
+# ********
+# 꿀 팁!
+# ********
+# yaml 파일로 연결된 개체를 삭제하기도 가능
+$ kubectl delete -f deployment.yaml
+```
+
+## Service
+
+쿠버네티스의 애플리케이션인 Pod 는 IP를 할당받고 생성된다.  
+하지만 죽었다가 다시 실행되었을 때 새로운 IP를 할당받는다.  
+따라서, 고정된 IP 주소로 접근하는 것이 어렵기 때문에 Service 객체를 통해 접근할 수 있다.  
+
+``` bash
+# 삭제했던 deployment 다시 생성
+$ kubectl apply -f deployment.yaml
+deployment.apps/nginx-deployment created
+
+# Deployment 및 pod 확인
+$ kubectl get deployment,pod
+NAME                               READY   UP-TO-DATE   AVAILABLE   AGE
+deployment.apps/nginx-deployment   3/3     3            3           90s
+
+NAME                                    READY   STATUS    RESTARTS   AGE
+pod/counter                             1/1     Running   0          35m
+pod/nginx-deployment-66b6c48dd5-7r4kx   1/1     Running   0          90s
+pod/nginx-deployment-66b6c48dd5-k2frn   1/1     Running   0          90s
+pod/nginx-deployment-66b6c48dd5-vwj8s   1/1     Running   0          90s
+
+# 생성된 pod 의 IP 주소 확인
+$ kubectl get pod -o wide
+NAME                                READY   STATUS    RESTARTS   AGE   IP           NODE       NOMINATED NODE   READINESS GATES
+counter                             1/1     Running   0          35m   172.17.0.3   minikube   <none>           <none>
+nginx-deployment-66b6c48dd5-7r4kx   1/1     Running   0          59s   172.17.0.4   minikube   <none>           <none>
+nginx-deployment-66b6c48dd5-k2frn   1/1     Running   0          59s   172.17.0.5   minikube   <none>           <none>
+nginx-deployment-66b6c48dd5-vwj8s   1/1     Running   0          59s   172.17.0.6   minikube   <none>           <none>
+# 이때 보이는 IP 주소는 'private IP' 이므로 외부 접근 불가
+# 172.xxx 192.xxx 등의 대역은 사설 IP 대역
+
+# Ping 테스트
+$ curl -X GET 172.17.0.5 -vvv
+Note: Unnecessary use of -X or --request, GET is already inferred.
+*   Trying 172.17.0.5:80...
+* TCP_NODELAY set
+* connect to 172.17.0.5 port 80 failed: No route to host
+* Failed to connect to 172.17.0.5 port 80: No route to host
+* Closing connection 0
+curl: (7) Failed to connect to 172.17.0.5 port 80: No route to host
+
+$ ping 172.17.0.5
+PING 172.17.0.3 (172.17.0.5) 56(84) bytes of data.
+From 172.17.0.1 icmp_seq=1 Destination Host Unreachable
+From 172.17.0.1 icmp_seq=2 Destination Host Unreachable
+# 80번(HTTP) 포트 및 ping 테스트 시 사용할 수 없는 것을 확인
+
+# 쿠버네티스 내부로 접속
+$ minikube ssh
+docker@minikube:~$
+
+# 내부에서 접속 테스트
+docker@minikube:~$ curl -X GET 172.17.0.5 -vvv
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+...
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+* Connection #0 to host 172.17.0.5 left intact
+# HTML 문서 수신 확인 가능
+
+# ping 테스트
+docker@minikube:~$ ping 172.17.0.5
+PING 172.17.0.3 (172.17.0.3) 56(84) bytes of data.
+64 bytes from 172.17.0.3: icmp_seq=1 ttl=64 time=0.047 ms
+64 bytes from 172.17.0.3: icmp_seq=2 ttl=64 time=0.066 ms
+64 bytes from 172.17.0.3: icmp_seq=3 ttl=64 time=0.039 ms
+# 정상적으로 응답하는 것을 확인 가능
+
+# pod 탈출
+docker@minikube:~$ exit
+exit
+```
+
+실제 서비스 생성해보기 
+
+``` bash
+$ vi service.yaml
+```
+
+아래는 `service.yaml` 내용
+``` yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-nginx
+  labels:
+    run: my-nginx
+spec:
+  type: NodePort # Service 의 Type 을 명시하는 부분입니다. 자세한 설명은 추후 말씀드리겠습니다.
+  ports:
+  - port: 80
+    protocol: TCP
+  selector: # 아래 label 을 가진 Pod 을 매핑하는 부분입니다.
+    app: nginx 
+```
+
+yaml 파일을 이용한 service 생성
+
+``` bash
+# yaml 파일로 service 생성
+$ kubectl apply -f serivce.yaml
+service/my-nginx created
+
+# service 확인
+$ kubectl get service
+NAME         TYPE        CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
+kubernetes   ClusterIP   10.96.0.1    <none>        443/TCP        59m
+my-nginx     NodePort    10.97.76.6   <none>        80:30375/TCP   66s
+# yaml 파일의 'my-nginx' 이름의 service 확인 가능
+# 30375 포트를 할당받은것을 확인
+# NodePort TYPE : minikube 내부 서비스를 외부에서 접근 가능
+# LoadBalancer TYPE : 외부에서 접근 가능한 것은 동일하나, LoadBalancing 관련 모듈이 필요함
+# ClusterIP TYPE : 고정된 IP 및 PORT 를 제공하지만, 내부에서만 접근할 수 있는 주소 할당됨
+
+# service 외부 접속
+$ curl -X GET $(minikube ip):30375
+<!DOCTYPE html>
+<html>
+<head>
+<title>Welcome to nginx!</title>
+...
+<p><em>Thank you for using nginx.</em></p>
+</body>
+</html>
+# 정상적으로 접속이 되는 것을 확인 가능
+# 단점으로는 무작위 pod 에 연결되기 때문에, 어떤 pod 가 연결되었는지 추가 확인이 필요함
+```
+
+## DVC(Data Version Control)
+
+아주 많은 양의 데이터를 모두 Git으로 관리하기는 어려움.  
+큰 용량의 데이터를 효율적으로 다루기 위해 사용하는 기능이 `DVC`  
+
+데이터를 직접 관리하진 않고, 데이터를 다른 곳에 저장해 둔 다음 해당 저장된 경로를 관리해주는 서비스.  
+보통 데이터를 저장하는 곳은 Cloud Service 를 사용
+
+``` bash
+# Python 3.8 이상의 환경 준비
+$ sudo apt-get install python3.8
+
+# apt 업데이트 및 업그레이드
+$ sudo apt-get update
+$ sudo apt-get upgrade
+
+# python 버전 확인 / 만약, 버전이 다르다면 경로 문제
+$ python3 -V
+Python 3.8.10
+
+# git 설치
+$ sudo apt-get install git
+
+# git 버전 확인
+$ git --version
+git version 2.25.1
+
+# pip 설치
+$ sudo apt-get install python3-pip
+
+# pip 버전 확인
+$ pip3 -V
+pip 20.0.2 from /usr/lib/python3/dist-packages/pip (python 3.8)
+
+# pip(Python Package Manager)를 통해 DVC 2.6.4 버전을 다운로드
+# [all] 키워드는 s3, gs, azure, oss, ssh 모두를 설치하는 옵션
+$ pip3 install 'dvc[all]==2.6.4'
+
+# 설치 후 dvc 명령 테스트
+$ dvc --version
+2.6.4
+```
+
+dvc 명령이 안되는 경우 !!  
+bashrc 또는 zshrc 에 환경 PATH 추가해야 함! ~~또는 재부팅~~
+
+```
+PATH = "$PATH:/home/유저명/.local/bin" 
+```
+
+위와 같이 환경 변수에 경로를 추가해주자.
+
+실습을 위한 새로운 폴더 생성
+
+``` bash
+# 실습을 위한 폴더 생성
+$ mkdir dvc-tutorial
+$ cd dvc-tutorial
+
+# 해당 폴더를 git 초기화
+$ git init
+Initialized empty Git repository in /home/kskim/dvc-tutorial/.git/
+
+# dvc 사용 초기화
+$ dvc init
+Initialized DVC repository.
+
+You can now commit the changes to git.
+...
+- Check out the documentation: <https://dvc.org/doc>
+- Get help and share ideas: <https://dvc.org/chat>
+- Star us on GitHub: <https://github.com/iterative/dvc>
+
+# dvc 기본 명령 1
+# data 를 저장할 용도의 'data' 디렉토리 생성 후 이동
+$ mkdir data
+$ cd data
+
+# 간단한 텍스트 파일 생성
+$ vi demo.txt
+
+# 텍스트 파일의 내용 출력
+$ cat demo.txt
+Hello AI!
+
+# 방금 생성한 'demo.txt' 파일을 dvc tracking 등록
+$ cd ..
+$ dvc add data/demo.txt
+100% Adding...|██████████████████████████████████████████████████████████████|1/1 [00:00, 16.86file/s]                                                                                                      To track the changes with git, run:
+
+        git add data/demo.txt.dvc data/.gitignore
+
+# 자동적으로 data/demo.txt 파일이 .gitignore 파일에 등록됨
+# dvc 추적을 사용하는 파일은 git 추적에서 제외됨
+# 또한 data/demo.txt.dvc 파일이 생성됨
+
+# git 저장소에 'data/demo.txt.dvc' 파일과 'data/.gitignore' 파일 추가
+$ git add data/demo.txt.dvc data/.gitignore
+
+# data 디렉토리로 이동해서 생성된 파일을 확인하고, dvc 파일 내용 확인
+$ cd data
+$ ls
+demo.txt  demo.txt.dvc
+
+$ cat demo.txt.dvc
+outs:
+- md5: ffd4422521629907de6e58b2ae152152
+  size: 10
+  path: demo.txt
+
+# git Commit 수행
+$ git commit -m "Add demo.txt.dvc"
+[master (root-commit) 46e3b92] Add demo.txt.dvc
+...
+ create mode 100644 data/demo.txt.dvc
+
+# data 가 실제로 저장될 Remote Storage 연결
+# 예제로 GoogleDrive 사용
+# URL 중 folders/ 이후 나오는 Folder ID 값을 사용함
+$ cd ..
+$ dvc remote add -d storage gdrive://~~~
+
+# dvc config 를 git commit
+$ git add .dvc/config
+$ git commit -m "add remote storage"
+[master c20f02c] add remote storage
+...
+[master c20f02c] add remote storage
+
+# 데이터를 remote storage 에 push
+$ dvc push
+...
+Enter verification code : (코드 입력)
+Authentication successful.
+1 file pushed
+# 제공되는 링크를 통해 Verification Code 를 발급받아 입력
+```
+
+연결된 DVC Remote Storage 에 파일이 올라간 것을 확인
+
+![remote-storage](./pic03.png)
+
+## DVC 가져오기
+
+``` bash
+# pull 테스트를 하기 위해 기존의 캐시 삭제하기
+$ rm -rf .dvc/cache/
+
+# push 한 실제 데이터 삭제하기
+$ rm -rf data/demo.txt
+
+# 업로드 데이터 pull
+$ dvc pull
+A       data/demo.txt
+1 file added and 1 file fetched
+
+# pull 데이터 내용 확인
+$ cat data/demo.txt
+Hello AI!
+```
+
+## DVC 버전 변경하기
+
+github 의 branch 변경과 동일하게 DVC의 버전 변경은 `checkout` 명령어를 사용함
+
+```bash
+# 버전을 변경하기 위해 대상 파일 내용 변경
+$ vi data/demo.txt
+
+# 변경 확인
+$ cat data/demo.txt
+Hello AI!
+this is version 2!
+
+# dvc 업로드 리스트에 추가
+$ dvc add data/demo.txt
+To track the changes with git, run:
+
+        git add data/demo.txt.dvc
+
+# 자동으로 'demo.txt.dvc' 파일이 수정되었으므로, dvc 파일 git 에 쓰기
+$ git add data/demo.txt.dvc
+
+# git 커밋 등록
+$ git commit -m "update demo.txt"
+...
+1 file changed, 2 insertions(+), 2 deletions(-)
+
+# dvc 업로드
+$ dvc push
+1 file pushed
+# GoogleDrive 지정 폴더에 새로운 폴더와 데이터가 생성된 것을 확인 가능
+
+# git 로그 확인하기
+$ git log --oneline
+ac51907 (HEAD -> master) update demo.txt
+c20f02c add remote storage
+46e3b92 Add demo.txt.dvc
+# 커밋 이력과 HASH 값이 출력됨
+
+# demo.txt.dvc 를 git checkout 을 이용해서
+# data/demo.txt.dvc 파일을 이전 버전으로 되돌림
+$ git checkout c20f02c data/demo.txt.dvc
+Updated 1 path from 8aedd65
+
+# dvc를 'demo.txt.dvc' 파일을 통해 checkout 시킴
+# 실제 버전정보는 dvc 파일이 가지고 있음
+# 과거의 dvc 파일을 통해 dvc checkout 을 진행하여 과거의 데이터로 업데이트
+$ dvc checkout
+M       data/demo.txt
+
+# 내용이 변경되었는지 확인하기
+$ cat data/demo.txt
+Hello AI!
+```
+
+## MLflow
+
+``` bash
+# 새로운 디렉토리 생성 후 이동
+$ mkdir mlflow-tutorial
+$ cd mlflow-tutorial
+
+# mlflow 1.20.2 버전 설치
+# python 3.6 이상 권장
+$ pip3 install mlflow==1.20.2
+
+# 버전 확인
+$ mlflow --version
+
+# 버전 확인 오류 발생 시 일부 패키지 버전을 변경해야 함
+# Downgrade the protobuf package to 3.20.x or lower. 메세지 확인됨
+# 'protobuf' 버전 변경, 원래 버전은 4.21.2 버전으로 확인되었음
+$ pip3 install --upgrade protobuf==3.20.0
+
+# 재실행
+$ mlflow --version
+mlflow, version 1.20.2
+
+# MLflow 는 기본값으로 5000번 포트를 사용하기 때문에
+# 5000번 포트의 방화벽 해제
+# Azure 서버이므로 해당 서버 설정에서 변경함
+# 필요 시 Ubuntu 서버 내부에서도 포트 5000번 방화벽 해제
+
+# MLflow Tracking Server 실행
+# 단 1개만 필요한 경우 ui, 여러개 필요한 경우 server 사용
+# 여기서는 단 1개만 사용할 것이므로 ui 로 실행
+# 모든 IP 허용을 위해 --host(-h) 속성을 0.0.0.0 으로 지정
+# -p 옵션으로 실행 포트를 5000번으로 설정
+$ mlflow ui --host 0.0.0.0 -p 5000
+[2022-06-29 06:26:16 +0000] [149546] [INFO] Starting gunicorn 20.1.0
+[2022-06-29 06:26:16 +0000] [149546] [INFO] Listening at: http://0.0.0.0:5000 (149546)
+[2022-06-29 06:26:16 +0000] [149546] [INFO] Using worker: sync
+[2022-06-29 06:26:16 +0000] [149548] [INFO] Booting worker with pid: 149548
+```
+
+웹 서버 접속 후 화면 모습
+
+![mlflow-ui-webserver](./pic04.png)
+
+
+## MLflow 에서 Sample 코드 실행
+
+```bash
+# 메인 디렉토리로 이동
+$ cd ~
+
+# 필요 소스 다운로드
+$ wget https://raw.githubusercontent.com/mlflow/mlflow/master/examples/sklearn_elasticnet_diabetes/linux/train_diabetes.py
+...
+2022-06-29 06:50:56 (35.1 MB/s) - ‘train_diabetes.py’ saved [3960/3960]
+
+# 다운로드 받은 파일을 mlflow-tutorial 디렉토리로 이동
+$ mv train_diabetes.py mlflow-tutorial
+
+# 디렉토리 이동 후 실행
+$ cd mlflow-tutorial
+$ python3 train_diabetes.py
+
+# 'sklearn' 모듈 오류 발생시 설치
+$ pip3 install sklearn
+
+# 설치 후 재실행
+$ python3 train_diabetes.py
+Elasticnet model (alpha=0.050000, l1_ratio=0.050000):
+  RMSE: 78.59249466381223
+  MAE: 66.30998032458166
+  R2: 0.06607434687959957
+Computing regularization path using the elastic net.
+
+# 실행 후 MLflow 웹 페이지에서 결과 확인
+
+# 다양한 parameter 로 테스트
+$ python3 train_diabetes.py  0.01 0.01
+$ python3 train_diabetes.py  0.01 0.75
+$ python3 train_diabetes.py  0.01 1.0
+$ python3 train_diabetes.py  0.05 1.0
+$ python3 train_diabetes.py  0.05 0.01
+$ python3 train_diabetes.py  0.5 0.8
+$ python3 train_diabetes.py  0.8 1.0
+```
+
+실행 결과 MLflow 웹 페이지에서 확인 가능
+
+![mlflow-webserver-logs](pic05.png)
+
+## MAE / R2 / RMSE
+### MAE(Mean Absolute Error)
+평균 절대 오차, 모든 오차의 평균  
+
+$$MAE = \sum \frac{1}{n}|x_i - x|$$
+
+
+### RMSE(Root Mean Square Error)
+평균 제곱 오차의 루트를 씌운 값  
+
+$$RMSE = \sqrt{\frac{1}{n}\sum(\^{Y}_i - Y)^2}$$
+
+### R2
+F1 Score 와 유사한 식을 가지는 듯 하다.  
+R2 Score가 높을수록 좋은 성능을 가짐
+
+$$ R^2 = 1 - \frac{\sum(y_i - \^y)^2}{\sum(y_i - \overline{y})^2} $$
+
+## Flask
+
+웹 서비스 개발을 위한 프레임워크  
+Django 등 다른 framework 보다 가벼운 프레임워크  
+단, 지원 기능은 적은 것이 단점  
+
+사용하기 쉽고, 간단한 기능을 가볍게 구현하기 매우 유용  
+
+``` bash
+# 새로운 디렉토리 생성
+$ mkdir flask-tutorial
+$ cd flask-tutorial
+
+# Flask 설치
+$ pip3 install -U Flask==2.0.2
+...
+Successfully installed Flask-2.0.2 click-8.1.3
+
+# Flask 버전 확인
+$ flask --version
+Python 3.8.10
+Flask 2.0.2
+Werkzeug 2.1.2
+
+
+# flask 간단한 서버 코드 작성
+$ vi app.py
+```
+
+아래는 작성 내용
+
+``` python
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def hello_world():
+    return "<p>Hello, World!</p>"
+
+if __name__ == "__main__":
+	app.run(debug=True, host='0.0.0.0', port=5000)
+# debug 모드로 실행, 모든 IP 에서 접근 허용, 5000 포트로 사용하는 것을 의미
+```
+
+Flask 라우팅 방법
+
+``` python
+from flask import Flask
+
+app = Flask(__name__)
+
+@app.route("/")
+def hello_world():
+    return "<p>Hello, World!</p>"
+
+# @app.route(path)
+# def func() ~~~
+# 형태로 라우팅 처리 가능
+@app.route("/helloai")
+def hello_AI():
+    return "<p>Hello, AI!</p>"
+
+if __name__ == "__main__":
+	app.run(debug=True, host='0.0.0.0', port=5000)
+```
+
+flask 웹서버 실행하기
+
+``` bash
+$ python3 app.py
+ * Serving Flask app 'app' (lazy loading)
+ * Environment: production
+...
+ * Debugger is active!
+ * Debugger PIN: 124-510-655
+# 'Debugger is active!' 문구와 함께 정상 실행된 것을 확인
+```
+
+MLflow 와 같은 경로로 접속(포트 5000)
+
+기본 경로로 접속한 경우  
+![flask-mainpage](./pic06.png)
+
+라우팅 경로(`/helloai`) 로 접속한 경우  
+![flask-route-path](./pic07.png)
+
+위와 같은 메시지를 확인할 수 있다.
+
+POST 라우팅 처리의 경우 아래와 같이 작성한다.
+``` python
+import json
+
+@app.route('/predict', methods=['POST', 'PUT'])
+def interface():
+  # return json, HTTP status Code
+  return json.dumps({'hello': 'world'}), 200
+```
+
+수정 후 재실행한 뒤, 이번에는 curl 명령어를 통해 확인
+
+``` bash
+# 라우팅 경로로 POST 요청
+$ curl -X POST http://SERVERIP:5000/predict
+{"hello": "world"}%
+
+# 동일한 경로로 GET Method 호출 시 라우팅 메서드가 존재하지 않음을 확인
+$ curl -X GET http://SERVERIP:5000/predict
+<!doctype html>
+<html lang=en>
+<title>405 Method Not Allowed</title>
+<h1>Method Not Allowed</h1>
+<p>The method is not allowed for the requested URL.</p>
+```
+---
+
+# Day 4 교육내용
+
+## 주요 내용
+1. `flask` 이어서 
+
+## 간단 평가
+
+
+---
+
+## Flask
+
+``` bash
+# 어제 생성한 'flask-tutorial' 디렉토리로 이동
+$ cd ~/flask-tutorial
+
+# 간단 train 코드 생성
+$ vi train.py
+```
+
+아래는 train.py 내용
+
+``` python
+import os
+import pickle
+
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import accuracy_score, classification_report
+from sklearn.model_selection import train_test_split
+
+RANDOM_SEED = 1234
+
+# STEP 1) data load
+data = load_iris()
+
+# STEP 2) data split
+X = data['data']
+y = data['target']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3,
+                                                    random_state=RANDOM_SEED)
+
+# STEP 3) train model
+model = RandomForestClassifier(n_estimators=300, random_state=RANDOM_SEED)
+model.fit(X_train, y_train)
+
+# STEP 4) evaluate model
+print(f"Accuracy :  {accuracy_score(y_test, model.predict(X_test))}")
+print(classification_report(y_test, model.predict(X_test)))
+
+# STEP 5) save model to ./build/model.pkl
+os.makedirs("./build", exist_ok=True)
+pickle.dump(model, open('./build/model.pkl', 'wb'))
+```
+
+``` bash
+# 저장한 코드 실행
+$ python3 train.py
+```
