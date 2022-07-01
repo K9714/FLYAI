@@ -1360,6 +1360,129 @@ pickle.dump(model, open('./build/model.pkl', 'wb'))
 ```
 
 ``` bash
+# 실행 전, 필요한 패키지 설치 확인
+$ pip3 install scikit-learn
+...
+Requirement already satisfied: numpy>=1.17.3 in /home/kskim/.local/lib/python3.8/site-packages (from scikit-learn) (1.23.0)
+
 # 저장한 코드 실행
 $ python3 train.py
+Accuracy :  0.9555555555555556
+              precision    recall  f1-score   support
+
+           0       1.00      1.00      1.00        16
+           1       0.94      0.94      0.94        17
+           2       0.92      0.92      0.92        12
+
+    accuracy                           0.96        45
+   macro avg       0.95      0.95      0.95        45
+weighted avg       0.96      0.96      0.96        45
+
+# Flask server 와 연동
+$ vi flask_server.py
 ```
+
+> Precision :   
+> Recall :   
+> F1-Score :  
+> support :  
+
+아래는 코드 내용
+
+``` python
+import pickle
+
+import numpy as np
+from flask import Flask, jsonify, request
+
+# 지난 시간에 학습한 모델 파일을 불러옵니다.
+model = pickle.load(open('./build/model.pkl', 'rb'))
+
+# Flask Server 를 구현합니다.
+app = Flask(__name__)
+
+
+# POST /predict 라는 API 를 구현합니다.
+@app.route('/predict', methods=['POST'])
+def make_predict():
+    # API Request Body 를 python dictionary object 로 변환합니다.
+    request_body = request.get_json(force=True)
+
+    # request body 를 model 의 형식에 맞게 변환합니다.
+    X_test = [request_body['sepal_length'], request_body['sepal_width'],
+              request_body['petal_length'], request_body['petal_width']]
+    X_test = np.array(X_test)
+    X_test = X_test.reshape(1, -1)
+
+    # model 의 predict 함수를 호출하여, prediction 값을 구합니다.
+    y_test = model.predict(X_test)
+
+    # prediction 값을 json 화합니다.
+    response_body = jsonify(result=y_test.tolist())
+
+    # predict 결과를 담아 API Response Body 를 return 합니다.
+    return response_body
+
+
+if __name__ == '__main__':
+    app.run(port=5000, debug=True)
+```
+
+소스코드 실행 후, `http://ServerIP:5000/predict` 주소로 POST 요청
+
+``` bash
+# 작성한 코드 실행
+$ python3 flask_server.py
+ * Serving Flask app 'flask_server' (lazy loading)
+ * Environment: production
+...
+ * Debugger is active!
+ * Debugger PIN: 124-510-655
+
+# ServerIP:5000/predict API 사용해보기
+# 전송할 데이터 타입은 json 타입이며, data 는 아래 문자열과 같다
+# 입력이 전송한 데이터일 때, 이 붓꽃 정보의 종 예측값을 반환
+$ curl -X POST -H "Content-Type:application/json" --data '{"sepal_length": 5.9, "sepal_width": 3.0, "petal_length": 5.1, "petal_width": 1.8}' http://localhost:5000/predict
+{
+  "result": [
+    2
+  ]
+}
+```
+
+## Microsoft Azure Machine Learning Studio
+
+리소스 부족으로 실습 진행 불가  
+(내용 추가 예정)
+
+Designer / Automated ML  
+
+시간당 약 800원 정도 하는 가벼운 서버를 하나 임시로 생성  
+사용량이 많아서 작업을 위한 Node를 받기 매우 어려웠다. ~~선착순~~  
+
+되는 사람과 안되는 사람이 너무 많아서 모든 교육생들이 전체 삭제 후 다시 서버를 생성했다.  
+
+타이타닉 탑승자 데이터를 통해 정보의 상관관계로 사망 여부를 예측하는 모델을 하나 생성하는 것이 실습 내용이었다.  
+나는 실행조차 못했었기 때문에, 이 타이밍 노려서 재빠르게 만들고 한발 먼저 시작했다.  
+
+그 결과, 아래와 같은 결과를 얻을 수 있었다.  
+
+> 훈련 시간 약 1시간 9분  
+
+![azure_machine_learning_studio](./pic08.png)
+
+> 성능 그래프(Recall, False-Positive Rate)  
+
+![azure_machine_learning_studio_graph](./pic09.png)
+
+
+ML Studio 에서 다양한 알고리즘과 파라미터로 성능이 좋은 순서대로 모델을 자동으로 생성해준다.  
+실행된 Python 코드도 확인할 수 있고, 해당 모델을 생성하기 위해 어떤 파라미터값이 사용되었는지도 확인이 가능했다.  
+
+이 결과를 통해 우리가 실습했던 `쿠버네티스` 로 모델을 옮겨 하나의 서비스 환경을 구축할 수 있었고,  
+웹 서버 패키지인 `flack` 과 연동하면 바로 API 서비스를 하나 생성할 수 있었다.  
+
+> 사용 후에는 꼭 리소스를 반납! (~~과금된다..~~)
+
+## Microsoft Azure (.ac.kr)
+http://azure.microsoft.com/students 페이지에서 Azure 사용 가능
