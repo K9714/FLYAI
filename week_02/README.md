@@ -239,15 +239,73 @@ https://docs.microsoft.com/ko-kr/cli/azure/install-azure-cli-windows?tabs=azure-
 테넌트에 다른 사람을 초대할 수 있으며, 해당 테넌트에 구독 정보를 추가하여 같이 작업할 수 있는 환경을 구축할 수 있다.  
 초대한 사람 모두에게 `구독 권한` 및 `테넌트 권한` 모두 주어야 사용이 가능하다.  
 
+---
 
 # Day 7 교육내용
 
 ## 주요 내용
-1. Microsoft Azure Cloud Service
+1. 
 
 ## 간단 평가
 d
 
 ---
 
-## Cloud Service
+## 내부 네트워크 구성
+IPv4 는 32비트 체계로 $2^{32}$(약 42억)개의 주소를 생성할 수 있다.  
+단, 이미 특정한 목적으로 정해진 약 5억개의 주소가 존재하므로 실제 사용할 수 있는 주소는 약 37억개 정도이다.  
+
+인터넷에 연결된 기기의 개수가 많아지며 IP 주소가 부족해진 상황이 되었다.  
+이 문제를 해결하기 위해 `내부 네트워크(Private Network)` 구성을 통해 IP 주소의 부족 현상을 해결하고 있다.  
+
+`Private IP` 는 `Public IP` 와는 다르게 정해진 대역이 존재한다.  
+* 24Bit Block : 10.X.X.X (약 1677만개)
+* 20Bit Block : 172.16.X.X ~ 172.31.X.X (약 104만개)
+* 16Bit Block : 192.168.X.X (약 6만5천개)
+
+## CIDR(Classless Inter-Domain Routing)
+참고 : https://www.nakjunizm.com/2020/01/29/Cidr/  
+IP 주소를 Class 없이 나타낸 표시 기법이다.  
+이렇게 Subnet 을 구성하면 별도의 네트워크처럼 동작한다.  
+
+## Subnet
+실제 Azure VM 이 배치되는 네트워크 단위  
+Virtual Network 에 종속  
+가장 네트워크와 서브넷은 크기 조절 가능  
+네트워크를 정의할 수 있는 최소 단위  
+일부 Azure 서비스의 경우, 특정 Subnet을 요구  
+* Gateway Subnet
+* Azure Bastion Subnet
+* Azure Firewall Subnet
+
+## Azure Vitual Network
+
+### Bastion
+SSH, RDP 와 같이 외부에서 클라우드 서버를 관리할 수 있는 도구인 `Bastion` 보안 상 좋은 기능  
+
+### DDoS Protection
+DDoS 공격으로 의심되는 패킷을 자동으로 필터링해주는 기능.  
+별도로 설정하지 않아도 `Basic` 기능이 작동함.  
+만약 `Standard` 설정을 할 경우 공격에 대한 Report 제공
+
+## Firewall(방화벽)
+알려진 공격 방법들을 미리 정의해두어 공격에 방어하기 위한 것  
+
+
+## Azure Virtual Machine
+IaaS 의 대표적인 서비스  
+사용하려고 하는 위치와 가장 가깝도록 생성(기준 약 2000km)
+
+## Azure Storage Account
+### Blob Storage
+브라우저에 문서 또는 이미지 직접 제공  
+설치 등의 분산 액세스용으로 파일 저장  
+비디오 및 오디오 스트리밍  
+백업, 복원, 재해복구, 보관을 위한 데이터 저장  
+
+
+## Database
+`Azure Database for` 수식어가 붙은 서비스는 Azure 서비스를 할 수 있도록 기능이 추가된 버전  
+`Azure SQL Database` 는 양방향 동기화가 가능
+> 하지만 삭제와 같은 명령도 동기화 되므로 조심해서 사용해야 함
+
