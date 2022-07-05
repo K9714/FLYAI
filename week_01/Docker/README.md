@@ -1499,7 +1499,7 @@ http://azure.microsoft.com/students 페이지에서 Azure 사용 가능
 2. `Jupyter-Notebook` 사용해보기
 
 ## 간단 평가
-
+...
 
 ---
 
@@ -1539,7 +1539,4 @@ from sklearn.preprocessing import MinMaxScaler
 # 데이터 끼워넣기
 mMscaler = MinMaxScaler()
 mMscaler.fit(data)
-
-
-
 ```
