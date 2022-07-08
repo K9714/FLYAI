@@ -244,10 +244,13 @@ https://docs.microsoft.com/ko-kr/cli/azure/install-azure-cli-windows?tabs=azure-
 # Day 7 교육내용
 
 ## 주요 내용
-1. 
+1. Azure Cloud Virtual Network
+2. Azure Storage Account
+3. Azure Database
+
 
 ## 간단 평가
-d
+Microsoft Azure 에 대한 기능들과 기본적인 사용법에 대해 실습을 진행했다.
 
 ---
 
@@ -309,3 +312,89 @@ IaaS 의 대표적인 서비스
 `Azure SQL Database` 는 양방향 동기화가 가능
 > 하지만 삭제와 같은 명령도 동기화 되므로 조심해서 사용해야 함
 
+---
+
+# Day 8 교육내용
+
+## 주요 내용
+1. Android Java 개발환경 구축
+
+
+## 간단 평가
+강사님께서 일이 있어 이후 과정의 강의를 당겨서 수업을 듣게 되었다.  
+
+---
+
+## Java 개발환경 구축
+Java 를 컴파일 및 실행시키기 위해 `JDK(Java Deveplopment Kit)` 및 Android 개발을 위해 `Android Studio` 를 다운받는다.
+
+> #### 윈도우 기준
+> Android Studio : https://developer.android.com/studio  
+> JDK 18 : https://oracle.com/java/technologies/downloads/#jdk18-windows
+
+## AVD(Android Virtual Device)
+안드로이드OS 가 실제로 없어도, 가상으로 안드로이드OS 를 시뮬레이션 해주는 기능이다.  
+
+---
+# Day 9 교육내용
+
+## 주요 내용
+1. Android Java Smart Sensor 프로그래밍
+
+
+## 간단 평가
+이후 교육과정의 챗봇 앱을 개발하기 위해 Java 를 사용한 Android 앱 개발 실습을 진행했다.    
+
+---
+
+## Smart Sensor Programming
+스마트폰에 존재하는 센서에 접근하여 값을 얻어오는 실습  
+
+`3축 Gravity` 센서 값 얻어오기
+
+``` java
+// SensorEventListener 인터페이스 상속
+// onResume, onPause, onSensorChanged, onAccuracyChanged
+// 4개의 메서드 구현
+class MainActivity implements SensorEventListener {
+  @Override
+  public void onResume() {
+    super.onResume();
+    (SensorManager).registerListener(this, Sensor, SensorManager.SENSOR_DELAY_NORMAL);
+  }
+
+  @Override
+  public void onPause() {
+    super.onPause();
+    (SensorManager).unregisterListener(this);
+  }
+
+  @Override
+  public void onSensorChanged(SensorEvent evt) {
+    switch(evt.sensor.getType()) {
+      case Sensor.TYPE_GRAVITY:
+        // do something
+        break;
+    }
+  }
+  
+  @Override
+  public void onAccuracyChanged(Sensor sensor, int acc) {
+
+  }
+}
+```
+
+
+---
+# Day 10 교육내용
+
+## 주요 내용
+1. Android Application Database
+
+
+## 간단 평가
+강의자료를 통해 안드로이드 앱이 사용하는 `SQLite3` 및 `Firebase` 연동 실습을 진행했다.  
+Java 로 Window Form 프로그램을 쉽게 개발하기 위한 `NetBeans` 프로그램도 간단하게 실습을 진행했다.
+
+---
